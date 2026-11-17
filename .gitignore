@@ -1,0 +1,13 @@
+# Build
+.gradle/
+build/
+*/build/
+
+# IDE
+.idea/
+*.iml
+
+# Secrets — NEVER commit (repo AGENTS.md §security)
+.env
+*.key
+credentials*

@@ -1,0 +1,183 @@
+
+name: Build Dev Release
+
+on:
+  push:
+    branches:
+      - dev
+
+  pull_request:
+    branches:
+      - dev
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+# Serialize development builds and release updates.
+concurrency:
+  group: dev-release-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Determine latest stable version
+        id: version
+        shell: bash
+        run: |
+          git fetch --tags --force
+
+          LATEST_TAG=$(
+            git tag --list 'v[0-9]*' |
+            grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' |
+            sort -V |
+            tail -n 1
+          )
+
+          if [ -z "$LATEST_TAG" ]; then
+            echo "No stable release tag found."
+            exit 1
+          fi
+
+          VERSION="${LATEST_TAG#v}"
+
+          echo "Latest stable release: $VERSION"
+          echo "value=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build desktop package (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :composeApp:packageDistributionForCurrentOS \
+            "-PappVersion=${{ steps.version.outputs.value }}"
+
+      - name: Build Android APK
+        if: runner.os == 'Linux'
+        run: |
+          ./gradlew :composeApp:assembleDebug \
+            "-PappVersion=${{ steps.version.outputs.value }}"
+
+      - name: Build desktop package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          .\gradlew.bat :composeApp:packageDistributionForCurrentOS `
+            "-PappVersion=${{ steps.version.outputs.value }}"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: dev-build-${{ runner.os }}
+          path: |
+            composeApp/build/compose/binaries/**
+            composeApp/build/outputs/apk/**
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Update dev pre-release
+    needs: build
+    runs-on: ubuntu-latest
+
+    # Never expose RELEASE_PAT to fork PRs.
+    if: >-
+      github.event_name == 'push' ||
+      (
+        github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name == github.repository
+      )
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: dev-build-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PAT }}
+          persist-credentials: true
+
+      - name: Update dev pre-release
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        shell: bash
+        run: |
+          # Find the latest stable release.
+          git fetch --tags --force
+
+          LATEST_TAG=$(
+            git tag --list 'v[0-9]*' |
+            grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' |
+            sort -V |
+            tail -n 1
+          )
+
+          if [ -z "$LATEST_TAG" ]; then
+            echo "No stable release tag found."
+            exit 1
+          fi
+
+          # Remove the previous dev release and its tag.
+          if gh release view dev >/dev/null 2>&1; then
+            gh release delete dev --yes --cleanup-tag
+          fi
+
+          # Move the dev tag to the current commit.
+          git tag -f dev "$GITHUB_SHA"
+          git push origin refs/tags/dev --force
+
+          # Create the replacement pre-release.
+          gh release create dev \
+            --target "$GITHUB_SHA" \
+            --title "dev" \
+            --notes "Development build based on ${LATEST_TAG}. Commit: ${GITHUB_SHA}" \
+            --prerelease
+
+          # Attach all generated packages.
+          mapfile -d '' ASSETS < <(
+            find release-assets -type f -print0
+          )
+
+          if [ "${#ASSETS[@]}" -eq 0 ]; then
+            echo "No build artifacts found."
+            exit 1
+          fi
+
+          gh release upload dev "${ASSETS[@]}"
+
+          echo "Development release updated successfully."

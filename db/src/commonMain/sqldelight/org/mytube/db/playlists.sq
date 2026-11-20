@@ -1,0 +1,36 @@
+-- Playlists belong to a single library and can only reference tracks from
+-- that library (spec §4.2). Smart playlists (rules-based) are modeled later;
+-- this table covers the storage shape shared by both kinds.
+CREATE TABLE playlists (
+    id TEXT NOT NULL PRIMARY KEY,
+    library_id TEXT NOT NULL REFERENCES libraries(id) ON DELETE CASCADE,
+    name TEXT NOT NULL
+);
+
+CREATE INDEX idx_playlists_library ON playlists(library_id);
+
+-- Ordered membership; position defines manual order (spec §10.2 reorder).
+CREATE TABLE playlist_tracks (
+    playlist_id TEXT NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
+    track_id TEXT NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL,
+    PRIMARY KEY (playlist_id, position)
+);
+
+insertPlaylist:
+INSERT INTO playlists(id, library_id, name) VALUES (?, ?, ?);
+
+selectPlaylistsForLibrary:
+SELECT * FROM playlists WHERE library_id = ? ORDER BY name;
+
+addTrackToPlaylist:
+INSERT INTO playlist_tracks(playlist_id, track_id, position) VALUES (?, ?, ?);
+
+removeTrackFromPlaylist:
+DELETE FROM playlist_tracks WHERE playlist_id = ? AND track_id = ?;
+
+tracksForPlaylist:
+SELECT tracks.* FROM playlist_tracks
+JOIN tracks ON tracks.id = playlist_tracks.track_id
+WHERE playlist_tracks.playlist_id = ?
+ORDER BY playlist_tracks.position;

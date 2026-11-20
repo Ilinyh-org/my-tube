@@ -77,21 +77,37 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           chmod +x ./gradlew
-          ./gradlew :composeApp:packageDistributionForCurrentOS \
-            "-PappVersion=${{ steps.version.outputs.value }}"
+          # Verify + test what exists today; packaging is skipped until the
+          # composeApp module lands (issue #4).
+          ./gradlew build "-PappVersion=${{ steps.version.outputs.value }}"
+          if [ -d composeApp ]; then
+            ./gradlew :composeApp:packageDistributionForCurrentOS \
+              "-PappVersion=${{ steps.version.outputs.value }}"
+          else
+            echo "composeApp module not present yet - skipping desktop packaging."
+          fi
 
       - name: Build Android APK
         if: runner.os == 'Linux'
         run: |
-          ./gradlew :composeApp:assembleDebug \
-            "-PappVersion=${{ steps.version.outputs.value }}"
+          if [ -d composeApp ]; then
+            ./gradlew :composeApp:assembleDebug \
+              "-PappVersion=${{ steps.version.outputs.value }}"
+          else
+            echo "composeApp module not present yet - skipping Android APK."
+          fi
 
       - name: Build desktop package (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          .\gradlew.bat :composeApp:packageDistributionForCurrentOS `
-            "-PappVersion=${{ steps.version.outputs.value }}"
+          .\gradlew.bat build "-PappVersion=${{ steps.version.outputs.value }}"
+          if (Test-Path composeApp) {
+            .\gradlew.bat :composeApp:packageDistributionForCurrentOS `
+              "-PappVersion=${{ steps.version.outputs.value }}"
+          } else {
+            Write-Host "composeApp module not present yet - skipping desktop packaging."
+          }
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7
@@ -100,7 +116,7 @@ jobs:
           path: |
             composeApp/build/compose/binaries/**
             composeApp/build/outputs/apk/**
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 7
 
   publish:
@@ -174,8 +190,8 @@ jobs:
           )
 
           if [ "${#ASSETS[@]}" -eq 0 ]; then
-            echo "No build artifacts found."
-            exit 1
+            echo "No build artifacts found - skipping pre-release update (composeApp module not present yet; see issue #4)."
+            exit 0
           fi
 
           gh release upload dev "${ASSETS[@]}"

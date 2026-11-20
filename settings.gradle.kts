@@ -15,3 +15,4 @@ dependencyResolutionManagement {
 
 include(":core")
 include(":crypto")
+include(":db")

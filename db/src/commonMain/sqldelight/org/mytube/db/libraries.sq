@@ -1,0 +1,22 @@
+-- Libraries are independent units (spec §4.1): own key, storage config,
+-- metadata, playlists, and synchronization state. The key and cloud storage
+-- configuration are NOT stored here; they are managed by :crypto / storage
+-- configuration per ADR-004/ADR-005 (proposed).
+CREATE TABLE libraries (
+    id TEXT NOT NULL PRIMARY KEY,          -- LibraryId: random 32-hex, never derived from the name
+    name TEXT NOT NULL,                    -- user-visible name; must not be blank (core Library invariant)
+    created_at_epoch_ms INTEGER NOT NULL
+);
+
+insertLibrary:
+INSERT INTO libraries(id, name, created_at_epoch_ms)
+VALUES (?, ?, ?);
+
+selectLibraries:
+SELECT * FROM libraries ORDER BY created_at_epoch_ms;
+
+countLibraries:
+SELECT COUNT(*) AS count FROM libraries;
+
+deleteLibrary:
+DELETE FROM libraries WHERE id = ?;

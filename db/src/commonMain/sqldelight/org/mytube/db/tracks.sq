@@ -1,0 +1,55 @@
+-- Tracks always belong to exactly one library (spec §4.2: identical tracks in
+-- different libraries must not be merged). Metadata columns hold the editable
+-- values (spec §8.3: edits are stored separately from the original audio file;
+-- its embedded metadata is never modified).
+CREATE TABLE tracks (
+    id TEXT NOT NULL PRIMARY KEY,
+    library_id TEXT NOT NULL REFERENCES libraries(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    artist TEXT,
+    album TEXT,
+    genre TEXT,
+    year INTEGER,
+    duration_ms INTEGER,
+    track_number INTEGER,
+    -- Opaque storage object name; must never reveal the original filename
+    -- (spec §5: object names must not leak private metadata).
+    object_name TEXT NOT NULL,
+    -- SHA-256 of the original file content, used by duplicate detection
+    -- stage 2 (spec §8.4). Nullable until the first full-content check.
+    content_sha256 TEXT
+);
+
+CREATE INDEX idx_tracks_library ON tracks(library_id);
+CREATE INDEX idx_tracks_dupe ON tracks(library_id, title, artist, album, duration_ms);
+CREATE INDEX idx_tracks_content ON tracks(library_id, content_sha256);
+
+-- Custom tags (spec §8.3).
+CREATE TABLE track_tags (
+    track_id TEXT NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+    tag TEXT NOT NULL,
+    PRIMARY KEY (track_id, tag)
+);
+
+insertTrack:
+INSERT INTO tracks(
+    id, library_id, title, artist, album, genre,
+    year, duration_ms, track_number, object_name, content_sha256
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+selectTracksForLibrary:
+SELECT * FROM tracks WHERE library_id = ? ORDER BY title;
+
+-- Stage-1 duplicate candidates: same library + matching metadata (spec §8.4).
+selectPossibleDuplicates:
+SELECT id FROM tracks
+WHERE library_id = ? AND title = ? AND artist = ? AND album = ? AND duration_ms = ?;
+
+addTag:
+INSERT INTO track_tags(track_id, tag) VALUES (?, ?);
+
+removeTag:
+DELETE FROM track_tags WHERE track_id = ? AND tag = ?;
+
+tagsForTrack:
+SELECT tag FROM track_tags WHERE track_id = ? ORDER BY tag;

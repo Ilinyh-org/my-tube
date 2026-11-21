@@ -7,6 +7,7 @@ import org.mytube.core.PlaylistId
 import org.mytube.core.Track
 import org.mytube.core.TrackId
 import org.mytube.core.TrackMetadata
+import org.mytube.core.TrackRecord
 
 /**
  * Persistence bridge between the `:core` domain model and the SQLDelight
@@ -16,13 +17,6 @@ import org.mytube.core.TrackMetadata
  * Timestamps are passed explicitly by callers so this layer stays
  * deterministic and platform-agnostic (no clock dependency in common code).
  */
-
-/** A track together with its storage-level fields that the domain model deliberately omits. */
-data class TrackRecord(
-    val track: Track,
-    val objectName: String,
-    val contentSha256: String?,
-)
 
 fun MyTubeDatabase.saveLibrary(library: Library, createdAtEpochMs: Long) {
     librariesQueries.insertLibrary(library.id.value, library.name, createdAtEpochMs)

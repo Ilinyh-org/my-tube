@@ -71,13 +71,22 @@ jobs:
             Write-Host "composeApp module not present yet - skipping desktop packaging."
           }
 
+      - name: Build Android APK (release)
+        if: runner.os == 'Linux'
+        run: |
+          if [ -d composeApp ]; then
+            ./gradlew :composeApp:assembleRelease
+          else
+            echo "composeApp module not present yet - skipping Android APK."
+          fi
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7
         with:
           name: main-build-${{ runner.os }}
           path: |
             composeApp/build/compose/binaries/**
-            composeApp/build/outputs/apk/**
+            composeApp/build/outputs/apk/**/*.apk
           if-no-files-found: warn
           retention-days: 30
 
@@ -102,16 +111,18 @@ jobs:
           set -euo pipefail
 
           # semantic-release (Release on Main) creates the GitHub release for
-          # the tag; wait for it instead of racing it.
-          for attempt in {1..12}; do
+          # the tag; wait for it instead of racing it. Release creation can lag
+          # the tag push by minutes (v1.1.0 run: 2 min was not enough), so
+          # allow up to 10 minutes before giving up.
+          for attempt in {1..30}; do
             if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
               exit 0
             fi
             echo "Waiting for the release to be created (attempt $attempt)..."
-            sleep 10
+            sleep 20
           done
 
-          echo "No release found for $GITHUB_REF_NAME - skipping asset upload."
+          echo "No release found for $GITHUB_REF_NAME after 10 minutes - skipping asset upload."
           exit 0
 
       - name: Attach build assets

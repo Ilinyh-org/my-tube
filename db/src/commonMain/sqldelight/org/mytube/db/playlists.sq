@@ -4,7 +4,8 @@
 CREATE TABLE playlists (
     id TEXT NOT NULL PRIMARY KEY,
     library_id TEXT NOT NULL REFERENCES libraries(id) ON DELETE CASCADE,
-    name TEXT NOT NULL
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX idx_playlists_library ON playlists(library_id);
@@ -18,7 +19,13 @@ CREATE TABLE playlist_tracks (
 );
 
 insertPlaylist:
-INSERT INTO playlists(id, library_id, name) VALUES (?, ?, ?);
+INSERT INTO playlists(id, library_id, name, description) VALUES (?, ?, ?, ?);
+
+clearPlaylistTracks:
+DELETE FROM playlist_tracks WHERE playlist_id = ?;
+
+deletePlaylist:
+DELETE FROM playlists WHERE id = ?;
 
 selectPlaylistsForLibrary:
 SELECT * FROM playlists WHERE library_id = ? ORDER BY name;

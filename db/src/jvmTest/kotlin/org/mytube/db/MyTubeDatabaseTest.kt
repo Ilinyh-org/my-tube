@@ -68,7 +68,7 @@ class MyTubeDatabaseTest {
             year = null, duration_ms = 1L, track_number = null,
             object_name = "obj-0001", content_sha256 = null,
         )
-        db.playlistsQueries.insertPlaylist("p1".padEnd(32, '0'), "a".repeat(32), "Favorites")
+        db.playlistsQueries.insertPlaylist("p1".padEnd(32, '0'), "a".repeat(32), "Favorites", "")
 
         db.librariesQueries.deleteLibrary("a".repeat(32))
 
@@ -108,7 +108,7 @@ class MyTubeDatabaseTest {
             )
         }
         val playlist = "p1".padEnd(32, '0')
-        db.playlistsQueries.insertPlaylist(playlist, lib, "Mix")
+        db.playlistsQueries.insertPlaylist(playlist, lib, "Mix", "")
         // Insert in scrambled order; query must still return manual order
         // (t1@0, t2@1, t3@2).
         listOf(2L, 0L, 1L).forEachIndexed { _, pos ->

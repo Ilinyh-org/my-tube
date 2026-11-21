@@ -16,6 +16,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(libs.kotlinx.coroutines.core)
+            api(project(":core"))
         }
         commonTest.dependencies {
             implementation(kotlin("test"))

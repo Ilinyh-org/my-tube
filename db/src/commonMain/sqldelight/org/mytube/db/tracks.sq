@@ -28,6 +28,7 @@ CREATE INDEX idx_tracks_content ON tracks(library_id, content_sha256);
 CREATE TABLE track_tags (
     track_id TEXT NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
     tag TEXT NOT NULL,
+    value TEXT NOT NULL DEFAULT '',
     PRIMARY KEY (track_id, tag)
 );
 
@@ -46,10 +47,10 @@ SELECT id FROM tracks
 WHERE library_id = ? AND title = ? AND artist = ? AND album = ? AND duration_ms = ?;
 
 addTag:
-INSERT INTO track_tags(track_id, tag) VALUES (?, ?);
+INSERT INTO track_tags(track_id, tag, value) VALUES (?, ?, ?);
 
 removeTag:
 DELETE FROM track_tags WHERE track_id = ? AND tag = ?;
 
 tagsForTrack:
-SELECT tag FROM track_tags WHERE track_id = ? ORDER BY tag;
+SELECT tag, value FROM track_tags WHERE track_id = ? ORDER BY tag;

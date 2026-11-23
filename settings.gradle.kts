@@ -2,6 +2,7 @@ rootProject.name = "my-tube"
 
 pluginManagement {
     repositories {
+        google()
         mavenCentral()
         gradlePluginPortal()
     }
@@ -9,6 +10,7 @@ pluginManagement {
 
 dependencyResolutionManagement {
     repositories {
+        google()
         mavenCentral()
     }
 }
@@ -16,3 +18,4 @@ dependencyResolutionManagement {
 include(":core")
 include(":crypto")
 include(":db")
+include(":composeApp")

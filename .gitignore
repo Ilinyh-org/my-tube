@@ -7,7 +7,12 @@ build/
 .idea/
 *.iml
 
+# Local-only env (untracked, never commit)
+local.properties
+.env-java
+
 # Secrets — NEVER commit (repo AGENTS.md §security)
 .env
 *.key
 credentials*
+.kotlin/

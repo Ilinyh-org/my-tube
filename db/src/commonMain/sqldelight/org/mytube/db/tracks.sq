@@ -2,6 +2,11 @@
 -- different libraries must not be merged). Metadata columns hold the editable
 -- values (spec §8.3: edits are stored separately from the original audio file;
 -- its embedded metadata is never modified).
+-- Privacy-relevant text columns (title, artist, album, genre, tag names and
+-- values) are stored as ADR-004 sealed values (base64 "MTV1" blobs): fresh
+-- random nonce per value, XChaCha20-Poly1305 under the library MEK. They
+-- cannot be compared or ordered by SQL; filtering/sorting happens in memory
+-- after decryption (Repositories.kt).
 CREATE TABLE tracks (
     id TEXT NOT NULL PRIMARY KEY,
     library_id TEXT NOT NULL REFERENCES libraries(id) ON DELETE CASCADE,
@@ -13,7 +18,9 @@ CREATE TABLE tracks (
     duration_ms INTEGER,
     track_number INTEGER,
     -- Opaque storage object name; must never reveal the original filename
-    -- (spec §5: object names must not leak private metadata).
+    -- (spec §5: object names must not leak private metadata). Already
+    -- non-identifying, so it stays plaintext (ADR-004: only privacy-relevant
+    -- values are encrypted).
     object_name TEXT NOT NULL,
     -- SHA-256 of the original file content, used by duplicate detection
     -- stage 2 (spec §8.4). Nullable until the first full-content check.
@@ -21,10 +28,9 @@ CREATE TABLE tracks (
 );
 
 CREATE INDEX idx_tracks_library ON tracks(library_id);
-CREATE INDEX idx_tracks_dupe ON tracks(library_id, title, artist, album, duration_ms);
 CREATE INDEX idx_tracks_content ON tracks(library_id, content_sha256);
 
--- Custom tags (spec §8.3).
+-- Custom tags (spec §8.3). Both the tag name and value are ADR-004 sealed.
 CREATE TABLE track_tags (
     track_id TEXT NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
     tag TEXT NOT NULL,
@@ -39,12 +45,7 @@ INSERT INTO tracks(
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 selectTracksForLibrary:
-SELECT * FROM tracks WHERE library_id = ? ORDER BY title;
-
--- Stage-1 duplicate candidates: same library + matching metadata (spec §8.4).
-selectPossibleDuplicates:
-SELECT id FROM tracks
-WHERE library_id = ? AND title = ? AND artist = ? AND album = ? AND duration_ms = ?;
+SELECT * FROM tracks WHERE library_id = ?;
 
 addTag:
 INSERT INTO track_tags(track_id, tag, value) VALUES (?, ?, ?);
@@ -53,4 +54,4 @@ removeTag:
 DELETE FROM track_tags WHERE track_id = ? AND tag = ?;
 
 tagsForTrack:
-SELECT tag, value FROM track_tags WHERE track_id = ? ORDER BY tag;
+SELECT tag, value FROM track_tags WHERE track_id = ?;

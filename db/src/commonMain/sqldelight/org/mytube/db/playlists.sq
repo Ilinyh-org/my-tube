@@ -28,7 +28,7 @@ deletePlaylist:
 DELETE FROM playlists WHERE id = ?;
 
 selectPlaylistsForLibrary:
-SELECT * FROM playlists WHERE library_id = ? ORDER BY name;
+SELECT * FROM playlists WHERE library_id = ?;
 
 addTrackToPlaylist:
 INSERT INTO playlist_tracks(playlist_id, track_id, position) VALUES (?, ?, ?);

@@ -2,7 +2,7 @@
 
 
 Note: accepted via PR #5 merge; implementation pending.
-- **Status:** Proposed (awaiting owner review — required before implementation, repo AGENTS.md §12)
+- **Status:** Accepted (owner approval 2026-11-24; implementation this ADR governs)
 - **Date:** 2026-11-19
 - **Deciders:** my-tube-bot (draft), owner (review)
 

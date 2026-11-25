@@ -8,11 +8,19 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import org.mytube.core.LibraryId
+import org.mytube.core.Track
+import org.mytube.core.TrackId
+import org.mytube.core.TrackMetadata
+import org.mytube.core.TrackRecord
+import org.mytube.crypto.KeyHierarchy
+import org.mytube.crypto.XChaCha20ValueCipher
 
 /**
  * JVM (in-memory SQLite) tests for the SQLDelight schema: foreign keys,
- * cascades, library isolation, playlist ordering, and duplicate-detection
- * indexes behavior. See spec §4.1/§4.2/§8.4 and AGENTS.md §10.
+ * cascades, library isolation, playlist ordering, and the ADR-004 value
+ * encryption behavior through the Repositories layer. See spec
+ * §4.1/§4.2/§8.4 and AGENTS.md §10.
  */
 class MyTubeDatabaseTest {
 
@@ -120,22 +128,30 @@ class MyTubeDatabaseTest {
     }
 
     @Test
-    fun `duplicate detection index helper queries by metadata`() {
+    fun `stage-1 duplicate candidates are computed on decrypted rows, not by SQL`() {
+        // ADR-004: metadata columns are sealed with a fresh nonce per value,
+        // so identical plaintexts never compare equal in SQL; stage 1 (spec
+        // §8.4) must run in memory over decrypted rows (CombinedLibraryView).
         insertLibrary("a".repeat(32), "A")
         val lib = "a".repeat(32)
-        fun track(id: String, duration: Long?) = db.tracksQueries.insertTrack(
-            id = id, library_id = lib,
-            title = "Song", artist = "Artist", album = "Album", genre = null,
-            year = null, duration_ms = duration, track_number = null,
-            object_name = "obj-$id", content_sha256 = null,
+        val cipher = XChaCha20ValueCipher(KeyHierarchy.randomMek())
+        fun track(id: String, duration: Long?) = db.saveTrack(
+            TrackRecord(
+                track = Track(
+                    id = TrackId(id), libraryId = LibraryId(lib),
+                    metadata = TrackMetadata(
+                        title = "Song", artist = "Artist", album = "Album",
+                        genre = null, year = null, durationMs = duration,
+                        trackNumber = null, customTags = emptyMap(),
+                    ),
+                ),
+                objectName = "obj-$id", contentSha256 = null,
+            ),
+            cipher,
         )
-        track("t1".padEnd(32, '0'), 200_000L)
-        track("t2".padEnd(32, '0'), 200_000L) // possible duplicate (stage 1)
-        track("t3".padEnd(32, '0'), 190_000L)
-
-        val dupes = db.tracksQueries.selectPossibleDuplicates(
-            library_id = lib, title = "Song", artist = "Artist", album = "Album", duration_ms = 200_000L,
-        ).executeAsList()
-        assertEquals(2, dupes.size)
+        track("1".repeat(32), 200_000L)
+        track("2".repeat(32), 200_000L)
+        val storedTitles = db.tracksQueries.selectTracksForLibrary(lib).executeAsList().map { it.title }
+        assertTrue(storedTitles.all { it != "Song" }, "titles must not be stored plaintext in this mode")
     }
 }

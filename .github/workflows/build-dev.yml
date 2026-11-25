@@ -124,13 +124,12 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
 
-    # Never expose RELEASE_PAT to fork PRs.
+    # Only real dev pushes update the rolling pre-release: pull_request
+    # events run with restricted GITHUB_TOKEN permissions and cannot
+    # create/update releases (and release assets don't exist pre-merge).
     if: >-
-      github.event_name == 'push' ||
-      (
-        github.event_name == 'pull_request' &&
-        github.event.pull_request.head.repo.full_name == github.repository
-      )
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/dev'
 
     steps:
       - name: Download build artifacts

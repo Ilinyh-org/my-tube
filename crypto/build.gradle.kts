@@ -1,8 +1,6 @@
-// my-tube crypto: key derivation, encryption, key management (AGENTS.md §3.1).
-// NOTE (repo AGENTS.md §12): no production cryptographic format is implemented
-// until ADRs for the key hierarchy (ADR-005) and DB encryption (ADR-004) are
-// documented and reviewed. This module currently contains the module skeleton
-// and placeholder-free shared types only.
+// my-tube crypto: key hierarchy implementation per ADR-005 (Argon2id + XChaCha20-Poly1305).
+// Common sources hold the versioned v1 wrap-blob format and recovery-key codec;
+// JVM sources hold the BouncyCastle-backed derivation/AEAD engine (ADR-005).
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -12,6 +10,9 @@ kotlin {
     jvm()
 
     sourceSets {
+        jvmMain.dependencies {
+            implementation("org.bouncycastle:bcprov-jdk18on:1.79")
+        }
         commonTest.dependencies {
             implementation(kotlin("test"))
         }

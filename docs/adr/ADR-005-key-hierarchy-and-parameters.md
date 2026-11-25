@@ -1,8 +1,7 @@
 # ADR-005: Cryptographic Key Hierarchy and Parameters
 
-- **Status:** Proposed (awaiting owner review — required before any crypto
-  implementation, repo AGENTS.md §12; production use additionally requires
-  security review)
+- **Status:** Accepted (owner approval 2026-11-24; implementation this ADR governs
+  has started; production use additionally requires security review)
 - **Date:** 2026-11-19
 - **Deciders:** my-tube-bot (draft), owner (review)
 

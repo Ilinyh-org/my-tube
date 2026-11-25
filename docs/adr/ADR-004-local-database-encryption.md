@@ -1,5 +1,7 @@
 # ADR-004: Local Database Encryption
 
+
+Note: accepted via PR #5 merge; implementation pending.
 - **Status:** Proposed (awaiting owner review — required before implementation, repo AGENTS.md §12)
 - **Date:** 2026-11-19
 - **Deciders:** my-tube-bot (draft), owner (review)

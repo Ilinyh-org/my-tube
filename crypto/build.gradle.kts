@@ -10,6 +10,10 @@ kotlin {
     jvm()
 
     sourceSets {
+        commonMain.dependencies {
+            implementation(libs.kotlinx.coroutines.core)
+            api(project(":core"))
+        }
         jvmMain.dependencies {
             implementation("org.bouncycastle:bcprov-jdk18on:1.79")
         }
